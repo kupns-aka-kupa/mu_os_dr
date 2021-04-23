@@ -1,120 +1,84 @@
 #include <iostream>
-#include <fstream>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <strings.h>
-#include <cstdlib>
-#include <cstdio>
-#include <cmath>
+#include <fstream>
 #include <cstdlib>
 
 using namespace std;
 
+struct Task
+{
+    double a;
+    double b;
+    int function;
+    double result;
+};
+
+void WriteToNormalFile()
+{
+    FILE * inputFile;
+    ofstream outputFile("result.txt");
+    inputFile = fopen("result.dat", "rb");
+    struct Task task;
+    size_t count = fread((char *)&task, sizeof(struct Task), 1, inputFile);
+    outputFile << "Low Border = " << task.a << " High Border = " << task.b << " Number of Function = " << task.function << " Result = " << task.result << endl;
+    fclose(inputFile);
+    outputFile.close();
+}
+
 void PrintError(const char * message)
 {
-    cerr << message;
-    cout << '\n';
+    cerr << message;cout << '\n';
     exit(1);
 }
 
-void SendTaskToServer()
-{
-    FILE * file;
-    file = fopen("result.dat", "rb");
-    int mySocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (mySocket < 0)
-    {
-        PrintError("ERROR in the intime creating socket");
-    }
-    sockaddr_in sockaddrIn = {};
-    sockaddrIn.sin_family = AF_INET;
-    sockaddrIn.sin_port = htons(8080);
-    sockaddrIn.sin_addr.s_addr = htonl(0x7F000001);
-    int  connectResult  =  connect(mySocket,  (struct  sockaddr  *)  &sockaddrIn, sizeof(sockaddr));
-    if (connectResult < 0)
-    {
-        PrintError("ERROR  in the intime connecting");
-    }
-    int count;
-    char buffer[1024];
-    count = fread(buffer, 1, sizeof(buffer), file);
-
-    if (send(mySocket, buffer, count, 0) < 0){
-        fclose(file);
-        PrintError("ERROR while sending the data");
-
-    }bzero(buffer, 1024);
-    fclose(file);
-    close(mySocket);
-
-}
 int main()
 {
-    int m=0;
-    float res, a, b=0.0;
-    char comp;
-    cout << "Menu: "<< '\n';
-    cout << "1. Addition (a+b)"<< '\n';
-    cout << "2. Difference (a-b) "<< '\n';
-    cout << "3. Multiplication (a*b)"<< '\n';
-    cout << "4. Division (a/b)"<< '\n';
-    cout << "5. Compare a and b "<< '\n';
-    cout << "6. Exit"<< '\n'<< '\n';
-    cout << "Enter number of menu: ";
-    cin >> m;
-    cout << "Enter a: "<<'\n';
-    cin >> a;
-
-    cout << "Enter b: "<<'\n';
-    cin >> b;
-    ofstream fout("result.dat", "a");
-    if (fout.is_open())
+    FILE * output;
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket < 0)
     {
-        switch(m)
+        PrintError("ERROR intime creating client socket");
+    }
+    int portNumber = 8080;
+    sockaddr_in serverSockaddrIn = {}, cli_addr;
+    serverSockaddrIn.sin_port = htons(portNumber);
+    serverSockaddrIn.sin_family = AF_INET;
+    serverSockaddrIn.sin_addr.s_addr = INADDR_ANY;
+    int bindResult = bind(serverSocket, (struct sockaddr *) &serverSockaddrIn, sizeof(serverSockaddrIn));
+
+    if (bindResult < 0)
+    {
+        PrintError("ERROR intime associating address with a socket");
+    }
+
+    listen(serverSocket, 2);
+    int clientSocket;
+    socklen_t clientSocketLength;
+    clientSocketLength = sizeof(cli_addr);
+    clientSocket = accept(serverSocket, (struct   sockaddr   *)&cli_addr, &clientSocketLength);
+    if (clientSocket < 0)
+    {
+        PrintError("ERROR intime accepting connection");
+    }
+    output = fopen("result.dat", "wb");
+    struct Task task;
+    while (true)
+    {
+        int data = recv(clientSocket, (char *)&task, sizeof(struct Task), 0);
+        if (data == 0)
         {
-            case 1 :res= a+b;
-                cout << "a+b: " << res<< endl;
-                fout << "a+b: " << res<< endl;
-                break;
-                case 2 :res= a-b;
-                cout << "a-b= " << res<< endl;
-                fout << "a-b: " << res<< endl;
-                break;
-                case 3 :res= a*b;
-                cout << "a*b= " << res<< endl;
-                fout << "a*b: " << res<< endl;
-                break;
-                case 4 :res= a/b;
-                cout << "a/b=: " << res<< endl;
-                fout << "a/b: " << res<< endl;
-                break;
-                case 5 :if (a>b)
-                {
-                    comp='>';
-                }
-                else if (a<b)
-                {
-                    comp='<';
-                }
-                else
-                {
-                    comp='=';
-                }
-                cout << "a" << comp<< "b" << endl;
-                fout << "a" << comp<< "b" << endl;
-                break;
-            case 6: return 0;
-            default :cout << "Incorrect value." << endl;
+            fclose(output);
+            break;
+        }
+        if (data > 0)
+        {
+            fwrite((char *)&task, 1, data, output);
         }
     }
-    else
-    {
-        cout << "Error opening file." << endl;
-    }
-    fout.close();
-    cout << "Sending result file in server..." << endl;
-    SendTaskToServer();
+    close(clientSocket);
+    close(serverSocket);
+    WriteToNormalFile();
     return 0;
 }

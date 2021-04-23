@@ -1,84 +1,97 @@
 #include <iostream>
+#include <fstream>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <fstream>
+#include <strings.h>
 #include <cstdlib>
+#include <cstdio>
+#include <cstring>
+
+#include "converter.hpp"
 
 using namespace std;
 
-struct Task
-{
-    double a;
-    double b;
-    int function;
-    double result;
-};
-
-void WriteToNormalFile()
-{
-    FILE * inputFile;
-    ofstream outputFile("result.txt");
-    inputFile = fopen("result.dat", "rb");
-    struct Task task;
-    size_t count = fread((char *)&task, sizeof(struct Task), 1, inputFile);
-    outputFile << "Low Border = " << task.a << " High Border = " << task.b << " Number of Function = " << task.function << " Result = " << task.result << endl;
-    fclose(inputFile);
-    outputFile.close();
-}
-
 void PrintError(const char * message)
 {
-    cerr << message;cout << '\n';
+    cerr << message;
+    cout << '\n';
     exit(1);
 }
 
-int main()
+void SendTaskToServer()
 {
-    FILE * output;
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket < 0)
+    FILE * file = fopen("result.dat", "rb");
+    int mySocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (mySocket < 0)
     {
-        PrintError("ERROR intime creating server socket");
+        PrintError("ERROR in the intime creating socket");
     }
-    int portNumber = 8080;
-    sockaddr_in serverSockaddrIn = {}, cli_addr;
-    serverSockaddrIn.sin_port = htons(portNumber);
-    serverSockaddrIn.sin_family = AF_INET;
-    serverSockaddrIn.sin_addr.s_addr = INADDR_ANY;
-    int bindResult = bind(serverSocket, (struct sockaddr *) &serverSockaddrIn, sizeof(serverSockaddrIn));
+    sockaddr_in sockaddrIn = { };
+    sockaddrIn.sin_family = AF_INET;
+    sockaddrIn.sin_port = htons(8080);
+    sockaddrIn.sin_addr.s_addr = htonl(0x7F000001);
+    int  connectResult  =  connect(mySocket, (struct  sockaddr  *)&sockaddrIn, sizeof(sockaddr));
+    if (connectResult < 0)
+    {
+        PrintError("ERROR  in the intime connecting");
+    }
+    int count;
+    char buffer[1024];
+    count = fread(buffer, 1, sizeof(buffer), file);
 
-    if (bindResult < 0)
+    if (send(mySocket, buffer, count, 0) < 0)
     {
-        PrintError("ERROR intime associating address with a socket");
+        fclose(file);
+        PrintError("ERROR while sending the data");
     }
+    bzero(buffer, 1024);
+    fclose(file);
+    close(mySocket);
 
-    listen(serverSocket, 2);
-    int clientSocket;
-    socklen_t clientSocketLength;
-    clientSocketLength = sizeof(cli_addr);
-    clientSocket = accept(serverSocket, (struct   sockaddr   *)&cli_addr, &clientSocketLength);
-    if (clientSocket < 0)
+}
+
+int cli(int &from, string &number, int &to, int argc, char *argv[])
+{
+    for(int count = 0; count < argc; count++)
     {
-        PrintError("ERROR intime accepting connection");
+        if(strcmp(argv[count], "-f") == 0) from = stoi(argv[++count]);
+        else if(strcmp(argv[count], "-t") == 0) to = stoi(argv[++count]);
+        else if(strcmp(argv[count], "-n") == 0) number = argv[++count];
     }
-    output = fopen("result.dat", "wb");
-    struct Task task;
-    while (true)
+}
+
+int prompt(int &number, string &from, int &to)
+{
+    cout << "Enter number: ";
+    cin >> number;
+    cout << "Enter base from: " << '\n';
+    cin >> from;
+    cout << "Enter base to: " << '\n';
+    cin >> to;
+}
+
+int main(int argc, char *argv[])
+{
+    int to, from;
+    string number;
+
+    if(argc > 0) cli(from, number, to, argc, argv);
+    else prompt(from, number, to);
+
+    ofstream fout("result.dat", std::ios_base::app);
+    if (fout.is_open())
     {
-        int data = recv(clientSocket, (char *)&task, sizeof(struct Task), 0);
-        if (data == 0)
-        {
-            fclose(output);
-            break;
-        }
-        if (data > 0)
-        {
-            fwrite((char *)&task, 1, data, output);
-        }
+        int decimal = toDecimal(number, from);
+        fout << "Number: " << number
+        << "From base: " << from
+        << "To base: " << to
+        << "Result: " <<  decimalTo(decimal, to) << endl;
     }
-    close(clientSocket);
-    close(serverSocket);
-    WriteToNormalFile();
+    else cout << "Error opening file." << endl;
+
+    fout.close();
+    cout << "Sending result file in client..." << endl;
+    SendTaskToServer();
     return 0;
 }
