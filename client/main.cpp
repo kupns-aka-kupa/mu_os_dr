@@ -10,12 +10,10 @@
 
 #include "converter.hpp"
 
-using namespace std;
-
 void PrintError(const char * message)
 {
-    cerr << message;
-    cout << '\n';
+    std::cerr << message;
+    std::cout << '\n';
     exit(1);
 }
 
@@ -51,47 +49,47 @@ void SendTaskToServer()
 
 }
 
-int cli(int &from, string &number, int &to, int argc, char *argv[])
+void cli(int &from, std::string &number, int &to, int argc, char *argv[])
 {
     for(int count = 0; count < argc; count++)
     {
-        if(strcmp(argv[count], "-f") == 0) from = stoi(argv[++count]);
-        else if(strcmp(argv[count], "-t") == 0) to = stoi(argv[++count]);
+        if(strcmp(argv[count], "-f") == 0) from = std::stoi(argv[++count]);
+        else if(strcmp(argv[count], "-t") == 0) to = std::stoi(argv[++count]);
         else if(strcmp(argv[count], "-n") == 0) number = argv[++count];
     }
 }
 
-int prompt(int &number, string &from, int &to)
+void prompt(int &number, std::string &from, int &to)
 {
-    cout << "Enter number: ";
-    cin >> number;
-    cout << "Enter base from: " << '\n';
-    cin >> from;
-    cout << "Enter base to: " << '\n';
-    cin >> to;
+    std::cout << "Enter number: ";
+    std::cin >> number;
+    std::cout << "Enter base from: " << '\n';
+    std::cin >> from;
+    std::cout << "Enter base to: " << '\n';
+    std::cin >> to;
 }
 
 int main(int argc, char *argv[])
 {
     int to, from;
-    string number;
+    std::string number;
 
-    if(argc > 0) cli(from, number, to, argc, argv);
+    if(argc > 1) cli(from, number, to, argc, argv);
     else prompt(from, number, to);
 
-    ofstream fout("result.dat", std::ios_base::app);
+    std::ofstream fout("result.dat", std::ios_base::app);
     if (fout.is_open())
     {
         int decimal = toDecimal(number, from);
         fout << "Number: " << number
         << "From base: " << from
         << "To base: " << to
-        << "Result: " <<  decimalTo(decimal, to) << endl;
+        << "Result: " <<  decimalTo(decimal, to) << std::endl;
     }
-    else cout << "Error opening file." << endl;
+    else std::cout << "Error opening file." << std::endl;
 
     fout.close();
-    cout << "Sending result file in client..." << endl;
+    std::cout << "Sending result file in client..." << std::endl;
     SendTaskToServer();
     return 0;
 }

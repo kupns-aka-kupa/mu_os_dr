@@ -5,8 +5,6 @@
 #include <fstream>
 #include <cstdlib>
 
-using namespace std;
-
 struct Task
 {
     double a;
@@ -18,18 +16,18 @@ struct Task
 void WriteToNormalFile()
 {
     FILE * inputFile;
-    ofstream outputFile("result.txt");
+    std::ofstream outputFile("result.txt");
     inputFile = fopen("result.dat", "rb");
     struct Task task;
     size_t count = fread((char *)&task, sizeof(struct Task), 1, inputFile);
-    outputFile << "Low Border = " << task.a << " High Border = " << task.b << " Number of Function = " << task.function << " Result = " << task.result << endl;
+    outputFile << "Low Border = " << task.a << " High Border = " << task.b << " Number of Function = " << task.function << " Result = " << task.result << std::endl;
     fclose(inputFile);
     outputFile.close();
 }
 
 void PrintError(const char * message)
 {
-    cerr << message;cout << '\n';
+    std::cerr << message;std::cout << '\n';
     exit(1);
 }
 
